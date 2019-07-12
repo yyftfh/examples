@@ -9,41 +9,51 @@ from torchvision import datasets, transforms
 
 class Net(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 20, 5, 1)
+        #具有可学习参数的层
+        super(Net, self).__init__() # == nn.Module.__init__()
+        self.conv1 = nn.Conv2d(1, 20, 5, 1)#input channel 1； output channel 20； kernel 5 ,stridde 1
         self.conv2 = nn.Conv2d(20, 50, 5, 1)
-        self.fc1 = nn.Linear(4*4*50, 500)
-        self.fc2 = nn.Linear(500, 10)
+        self.fc1 = nn.Linear(4*4*50, 500) 
+        self.fc2 = nn.Linear(500, 10) # output is 10*1 units vetcor 
 
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
+    def forward(self, x): #
+        #不具有可学习参数的层
+        
+        x = F.relu(self.conv1(x)) # relu function is x when x>0 else 0  
+        
+        x = F.max_pool2d(x, 2, 2) #max_pool2d is get the maxium number from a 2*2 matrix 
+        x = F.relu(self.conv2(x)) 
         x = F.max_pool2d(x, 2, 2)
-        x = F.relu(self.conv2(x))
-        x = F.max_pool2d(x, 2, 2)
-        x = x.view(-1, 4*4*50)
+        x = x.view(-1, 4*4*50) #view is same as reshape in numpy
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
+        return F.log_softmax(x, dim=1) # softmax: exp(x_i)/exp(x).sum() vs log_softmax: log(exp(x_i) / exp(x).sum() )
     
 def train(args, model, device, train_loader, optimizer, epoch):
-    model.train()
+    #train_loader：dataset
+    #epoch： the whole dataset training numbers
+    model.train() #start training state; model.eval() only forward
     for batch_idx, (data, target) in enumerate(train_loader):
+        #enumerate: index(batch_idx) + (data,target)
+        #data:image
+        #target:label 
         data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = F.nll_loss(output, target)
-        loss.backward()
-        optimizer.step()
+        #device is about using GPU/CPU
+        optimizer.zero_grad() #all modual parameter 's gradient = 0 since PyTorch by default accumulates gradients
+        output = model(data) 
+        loss = F.nll_loss(output, target)#nll_loss: one of loss function
+        loss.backward() #propagate back
+        optimizer.step()#update paprameter
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
 
 def test(args, model, device, test_loader):
-    model.eval()
+    model.eval() #only forward can't with backward 
     test_loss = 0
     correct = 0
-    with torch.no_grad():
+    with torch.no_grad(): # with part: No back probagation; no update parameter
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
@@ -51,7 +61,7 @@ def test(args, model, device, test_loader):
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
 
-    test_loss /= len(test_loader.dataset)
+    test_loss /= len(test_loader.dataset) #average loss
 
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, len(test_loader.dataset),
@@ -82,7 +92,7 @@ def main():
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
-    torch.manual_seed(args.seed)
+    torch.manual_seed(args.seed) # fixed seed 
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
